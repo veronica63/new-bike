@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bike Sharing Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-matrix@2.0.1/dist/chartjs-chart-matrix.min.js"></script>
+    <style>
+        :root {
+            --primary: #32CD32;
+            --bg: #f4f6f9;
+            --card-bg: #ffffff;
+            --text: #333;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            padding: 0;
+            color: var(--text);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            background-color: var(--primary);
+            color: white;
+            padding: 10px 20px;
+            display: flex;
+            align-items: center;
+            height: 50px;
+        }
+
+        header img {
+            height: 30px;
+            margin-right: 15px;
+        }
+
+        header h1 {
+            font-size: 1.2rem;
+            margin: 0;
+        }
+
+        .container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 250px;
+            background: #222d32;
+            color: #b8c7ce;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-menu {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .sidebar-menu li {
+            padding: 15px 20px;
+            cursor: pointer;
+            border-left: 3px solid transparent;
+        }
+
+        .sidebar-menu li:hover,
+        .sidebar-menu li.active {
+            background: #1e282c;
+            color: white;
+            border-left-color: var(--primary);
+        }
+
+        /* Main Content */
+        .main {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .row {
+            display: flex;
+            gap: 15px;
+        }
+
+        .col-3 {
+            flex: 3;
+        }
+
+        .col-9 {
+            flex: 9;
+        }
+
+        .col-1 {
+            flex: 1;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            padding: 15px;
+            border-top: 3px solid var(--primary);
+        }
+
+        .card-header {
+            font-weight: bold;
+            margin-bottom: 15px;
+            font-size: 1rem;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 5px;
+        }
+
+        /* Compactness */
+        .form-group {
+            margin-bottom: 10px;
+        }
+
+        label {
+            display: block;
+            font-size: 0.9rem;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+
+        select,
+        input[type="date"],
+        input[type="range"] {
+            width: 100%;
+            padding: 5px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+        }
+
+        button {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 3px;
+            cursor: pointer;
+            width: 100%;
+        }
+
+        button:hover {
+            background: #28a428;
+        }
+
+        /* Toggle */
+        .toggle-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .toggle-btn {
+            flex: 1;
+            padding: 5px;
+            text-align: center;
+            border: 1px solid #ddd;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        .toggle-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        /* Decision Cards */
+        .decision-box {
+            padding: 10px;
+            border-radius: 5px;
+            color: white;
+            margin-top: 10px;
+            font-size: 0.9rem;
+        }
+
+        .alert {
+            background: #d9534f;
+        }
+
+        .surge {
+            background: #f0ad4e;
+        }
+
+        .promo {
+            background: #5bc0de;
+        }
+
+        .normal {
+            background: #5cb85c;
+        }
+
+        /* Canvas */
+        canvas {
+            width: 100% !important;
+            height: 400px !important;
+        }
+
+        /* Feature Importance Bar */
+        .bar-container {
+            margin-bottom: 5px;
+        }
+
+        .bar-label {
+            font-size: 0.8rem;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .bar-bg {
+            background: #eee;
+            height: 10px;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        .bar-fill {
+            height: 100%;
+            background: var(--primary);
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <img src="/static/logo.png" alt="Logo" onerror="this.style.display='none'">
+        <h1>Bike Sharing Dashboard</h1>
+    </header>
+
+    <div class="container">
+        <aside class="sidebar">
+            <ul class="sidebar-menu">
+                <li class="active" onclick="switchTab('insight')">Insight & Exploration</li>
+                <li onclick="switchTab('prediction')">Prediction & Decision</li>
+            </ul>
+        </aside>
+
+        <main class="main" id="insight-tab">
+            <div class="row">
+                <div class="col-3 card">
+                    <div class="card-header">Filters</div>
+                    <div class="form-group">
+                        <label>Weather Condition</label>
+                        <div><input type="checkbox" checked value="1"> Clear/Few Clouds</div>
+                        <div><input type="checkbox" checked value="2"> Mist/Cloudy</div>
+                        <div><input type="checkbox" checked value="3"> Light Rain/Snow</div>
+                        <div><input type="checkbox" checked value="4"> Heavy Rain/Snow</div>
+                    </div>
+                    <div class="form-group">
+                        <label>User Type</label>
+                        <select id="userType">
+                            <option value="cnt">All Users</option>
+                            <option value="registered">Membership</option>
+                            <option value="casual">Non-Membership</option>
+                        </select>
+                    </div>
+                    <button onclick="updateCharts()">Apply Filters</button>
+                </div>
+                <div class="col-9 card">
+                    <div class="card-header" style="display:flex; justify-content:space-between;">
+                        <span>Demand Visualization</span>
+                        <div class="toggle-container" style="margin:0;">
+                            <div class="toggle-btn active" onclick="setVizMode('heatmap', this)">Heatmap</div>
+                            <div class="toggle-btn" onclick="setVizMode('scatter', this)">Scatter Plot</div>
+                        </div>
+                    </div>
+                    <canvas id="mainChart"></canvas>
+                </div>
+            </div>
+        </main>
+
+        <main class="main" id="prediction-tab" style="display:none;">
+            <div class="row">
+                <div class="col-9">
+                    <div class="card" style="margin-bottom: 15px;">
+                        <div class="card-header">Scenario Simulation</div>
+                        <div class="row">
+                            <div class="col-3">
+                                <label>Date</label>
+                                <input type="date" id="predDate" value="2012-07-01">
+                            </div>
+                            <div class="col-3">
+                                <label>Weather</label>
+                                <select id="predWeather">
+                                    <option value="1">Clear/Few Clouds</option>
+                                    <option value="2">Mist/Cloudy</option>
+                                    <option value="3">Light Rain/Snow</option>
+                                </select>
+                            </div>
+                            <div class="col-3">
+                                <label>Temperature (°C)</label>
+                                <input type="range" id="predTemp" min="-10" max="40" value="25"
+                                    oninput="this.nextElementSibling.value = this.value">
+                                <output>25</output>
+                            </div>
+                            <div class="col-3" style="display:flex; align-items:end;">
+                                <button onclick="runPrediction()">Run Prediction</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">Predicted Demand Curve</div>
+                        <canvas id="predChart"></canvas>
+                        <div id="decisionCard"></div>
+                        <div id="aiAdvice"
+                            style="margin-top:15px; padding:10px; background:#f9f9f9; border-left:4px solid #333;">
+                            <strong>AI Assistant:</strong> Run prediction to get advice.
+                        </div>
+                    </div>
+                </div>
+                <div class="col-3 card">
+                    <div class="card-header">Feature Importance</div>
+                    <div id="featureImportance">
+                        <!-- Mock Data for Feature Importance -->
+                        <div class="bar-container">
+                            <div class="bar-label"><span>Hour (hr)</span><span>0.65</span></div>
+                            <div class="bar-bg">
+                                <div class="bar-fill" style="width: 65%;"></div>
+                            </div>
+                        </div>
+                        <div class="bar-container">
+                            <div class="bar-label"><span>Temperature (temp)</span><span>0.15</span></div>
+                            <div class="bar-bg">
+                                <div class="bar-fill" style="width: 15%;"></div>
+                            </div>
+                        </div>
+                        <div class="bar-container">
+                            <div class="bar-label"><span>Year (yr)</span><span>0.08</span></div>
+                            <div class="bar-bg">
+                                <div class="bar-fill" style="width: 8%;"></div>
+                            </div>
+                        </div>
+                        <div class="bar-container">
+                            <div class="bar-label"><span>Season</span><span>0.05</span></div>
+                            <div class="bar-bg">
+                                <div class="bar-fill" style="width: 5%;"></div>
+                            </div>
+                        </div>
+                        <div class="bar-container">
+                            <div class="bar-label"><span>Working Day</span><span>0.03</span></div>
+                            <div class="bar-bg">
+                                <div class="bar-fill" style="width: 3%;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        let mainChart = null;
+        let predChart = null;
+        let currentVizMode = 'heatmap';
+
+        function switchTab(tab) {
+            document.querySelectorAll('.sidebar-menu li').forEach(li => li.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById('insight-tab').style.display = tab === 'insight' ? 'flex' : 'none';
+            document.getElementById('prediction-tab').style.display = tab === 'prediction' ? 'flex' : 'none';
+            if (tab === 'insight') updateCharts();
+        }
+
+        function setVizMode(mode, btn) {
+            currentVizMode = mode;
+            document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            updateCharts();
+        }
+
+        async function updateCharts() {
+            // Fetch data
+            const userType = document.getElementById('userType').value;
+            const checkboxes = document.querySelectorAll('input[type="checkbox"]:checked');
+            const weather = Array.from(checkboxes).map(cb => cb.value);
+
+            const response = await fetch(`/api/data?weather[]=${weather.join('&weather[]=')}`);
+            const data = await response.json();
+
+            const ctx = document.getElementById('mainChart').getContext('2d');
+            if (mainChart) mainChart.destroy();
+
+            if (currentVizMode === 'heatmap') {
+                // Aggregate for heatmap: Weekday vs Hour
+                const heatmapData = new Array(7).fill(0).map(() => new Array(24).fill(0));
+                const counts = new Array(7).fill(0).map(() => new Array(24).fill(0));
+
+                data.forEach(d => {
+                    heatmapData[d.weekday][d.hr] += d[userType];
+                    counts[d.weekday][d.hr]++;
+                });
+
+                // Average
+                for (let w = 0; w < 7; w++) {
+                    for (let h = 0; h < 24; h++) {
+                        if (counts[w][h] > 0) heatmapData[w][h] /= counts[w][h];
+                    }
+                }
+
+                const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                const points = [];
+                for (let w = 0; w < 7; w++) {
+                    for (let h = 0; h < 24; h++) {
+                        points.push({
+                            x: days[w],
+                            y: h.toString(),
+                            v: heatmapData[w][h]
+                        });
+                    }
+                }
+
+                mainChart = new Chart(ctx, {
+                    type: 'matrix',
+                    data: {
+                        datasets: [{
+                            label: 'Demand',
+                            data: points,
+                            backgroundColor(c) {
+                                const value = c.dataset.data[c.dataIndex].v;
+                                const alpha = Math.min(1, value / 500);
+                                return `rgba(50, 205, 50, ${alpha})`;
+                            },
+                            width: ({ chart }) => (chart.chartArea || {}).width / 7 - 1,
+                            height: ({ chart }) => (chart.chartArea || {}).height / 24 - 1
+                        }]
+                    },
+                    options: {
+                        maintainAspectRatio: false,
+                        scales: {
+                            x: {
+                                type: 'category',
+                                labels: days,
+                                ticks: { display: true },
+                                grid: { display: false }
+                            },
+                            y: {
+                                type: 'category',
+                                labels: Array.from({ length: 24 }, (_, i) => i.toString()),
+                                offset: true,
+                                reverse: true,
+                                grid: { display: false },
+                                title: { display: true, text: 'Hour' }
+                            }
+                        },
+                        plugins: {
+                            tooltip: {
+                                callbacks: {
+                                    title() { return ''; },
+                                    label(context) {
+                                        const v = context.raw;
+                                        return [`Day: ${v.x}`, `Hour: ${v.y}`, `Avg: ${v.v.toFixed(1)}`];
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+
+            } else {
+                // Scatter Plot
+                const points = data.map(d => ({
+                    x: d.hr,
+                    y: d[userType],
+                    weather: d.weathersit
+                }));
+
+                mainChart = new Chart(ctx, {
+                    type: 'scatter',
+                    data: {
+                        datasets: [{
+                            label: 'Rides',
+                            data: points,
+                            backgroundColor: ctx => {
+                                const w = ctx.raw.weather;
+                                if (w >= 3) return 'blue'; // Rain
+                                if (w == 2) return 'grey';
+                                return 'orange';
+                            },
+                            pointRadius: 3
+                        }]
+                    },
+                    options: {
+                        maintainAspectRatio: false,
+                        scales: {
+                            x: { title: { display: true, text: 'Hour' } },
+                            y: { title: { display: true, text: 'Count' } }
+                        },
+                        plugins: {
+                            legend: {
+                                display: true, labels: {
+                                    generateLabels: (chart) => [
+                                        { text: 'Clear', fillStyle: 'orange' },
+                                        { text: 'Cloudy', fillStyle: 'grey' },
+                                        { text: 'Rain', fillStyle: 'blue' }
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+        async function runPrediction() {
+            const date = document.getElementById('predDate').value;
+            const weather = document.getElementById('predWeather').value;
+            const temp = document.getElementById('predTemp').value;
+
+            const response = await fetch('/api/predict', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ date, weather, temp })
+            });
+            const res = await response.json();
+
+            const ctx = document.getElementById('predChart').getContext('2d');
+            if (predChart) predChart.destroy();
+
+            predChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: res.hours,
+                    datasets: [
+                        {
+                            label: 'Predicted Demand',
+                            data: res.pred,
+                            borderColor: '#32CD32',
+                            backgroundColor: 'rgba(50, 205, 50, 0.1)',
+                            fill: false,
+                            tension: 0.4
+                        },
+                        {
+                            label: 'Upper CI',
+                            data: res.upper,
+                            borderColor: 'transparent',
+                            backgroundColor: 'rgba(50, 205, 50, 0.2)',
+                            fill: '+1', // Fill to next dataset (Lower CI) - wait, Chart.js fill syntax is tricky
+                            pointRadius: 0
+                        },
+                        {
+                            label: 'Lower CI',
+                            data: res.lower,
+                            borderColor: 'transparent',
+                            fill: false,
+                            pointRadius: 0
+                        }
+                    ]
+                },
+                options: {
+                    plugins: {
+                        filler: { propagate: false }
+                    },
+                    scales: { y: { beginAtZero: true } }
+                }
+            });
+
+            // Decision Logic
+            const maxDemand = Math.max(...res.pred);
+            const maxHour = res.pred.indexOf(maxDemand);
+            const decisionDiv = document.getElementById('decisionCard');
+
+            let html = '';
+            if (maxDemand > 900) {
+                html = `<div class="decision-box alert">⚠️ <strong>Capacity Breach!</strong> Peak ${maxDemand.toFixed(0)} at ${maxHour}:00. Dispatch trucks at ${Math.max(0, maxHour - 2)}:00.</div>`;
+            } else if (maxDemand > 700) {
+                html = `<div class="decision-box surge">⚡ <strong>High Demand.</strong> Peak ${maxDemand.toFixed(0)}. Enable Surge Pricing.</div>`;
+            } else if (maxDemand < 200) {
+                html = `<div class="decision-box promo">🏷️ <strong>Low Demand.</strong> Peak ${maxDemand.toFixed(0)}. Push Coupons.</div>`;
+            } else {
+                html = `<div class="decision-box normal">✅ <strong>Normal Operations.</strong> Demand within range.</div>`;
+            }
+            decisionDiv.innerHTML = html;
+
+            // AI Advice
+            const status = maxDemand > 500 ? "Busy" : "Free";
+            let advice = `<strong>Current Status:</strong> System is expected to be <strong>${status}</strong>.<br>`;
+
+            // Find next drop
+            let nextOffPeak = -1;
+            for (let i = maxHour + 1; i < 24; i++) {
+                if (res.pred[i] < maxDemand * 0.7) {
+                    nextOffPeak = i;
+                    break;
+                }
+            }
+
+            if (nextOffPeak !== -1) {
+                advice += `<strong>Actionable Advice:</strong> Predicted peak ends around ${maxHour}:00. Suggest traveling after <strong>${nextOffPeak}:00</strong> for an 'Off-Peak' experience.`;
+            } else {
+                advice += `<strong>Actionable Advice:</strong> Demand stays high. Consider early travel.`;
+            }
+
+            document.getElementById('aiAdvice').innerHTML = advice;
+        }
+
+        // Init
+        updateCharts();
+    </script>
+
+</body>
+
+</html>
